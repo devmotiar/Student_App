@@ -39,6 +39,7 @@ export default function DashboardPage() {
       </div>
     )
   }
+  console.log("demo")
 
   return (
     <div className="mx-auto max-w-6xl">
