@@ -16,7 +16,7 @@ export function Logo({
       </span>
       {showText && (
         <span className="font-heading text-lg font-bold tracking-tight text-foreground">
-          Lumina
+          SITM
         </span>
       )}
     </span>

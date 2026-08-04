@@ -95,13 +95,13 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
         )}
       </nav>
 
-      <div className="rounded-xl bg-accent/50 p-4">
+      {/* <div className="rounded-xl bg-accent/50 p-4">
         <p className="text-sm font-semibold text-foreground">Go Premium</p>
         <p className="mt-1 text-xs text-muted-foreground leading-relaxed">
           Unlock all courses and downloadable resources.
         </p>
         <Button className="mt-3 h-9 w-full text-xs">Upgrade plan</Button>
-      </div>
+      </div> */}
 
       <button
         onClick={handleLogout}

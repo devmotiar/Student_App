@@ -19,9 +19,9 @@ const jakarta = Plus_Jakarta_Sans({
 })
 
 export const metadata: Metadata = {
-  title: 'Lumina — Learn Anything, Anywhere',
+  title: 'SITM — Learn Anything, Anywhere',
   description:
-    'Lumina is a modern e-learning platform with live classes, recorded lessons, and a personalized dashboard to track your progress.',
+    'SITM is a modern e-learning platform with live classes, recorded lessons, and a personalized dashboard to track your progress.',
   generator: 'v0.app',
   icons: {
     icon: [

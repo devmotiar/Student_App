@@ -12,10 +12,12 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { where } from 'firebase/firestore'
+import { useAuth } from '@/lib/hooks/useAuth'
 
 export default function DashboardPage() {
   const { data: courses, loading: coursesLoading } = useFirebaseData('courses')
   const { data: liveClasses, loading: classesLoading } = useFirebaseData('liveClasses')
+  const {userProfile}=useAuth()
 
   const inProgress = courses.filter((c: any) => c.progress > 0 && c.progress < 100)
   const recommended = courses.filter((c: any) => c.progress === 0).slice(0, 3)
@@ -23,11 +25,12 @@ export default function DashboardPage() {
 
   const isLoading = coursesLoading || classesLoading
 
+
   if (isLoading) {
     return (
       <div className="mx-auto max-w-6xl">
         <PageHeader
-          title={`Welcome back, ${currentUser.name.split(' ')[0]}`}
+          title={`Welcome back, ${userProfile?.displayName}`}
           description="Here's a snapshot of your learning journey today."
         />
         <div className="flex items-center justify-center py-12">
@@ -40,7 +43,7 @@ export default function DashboardPage() {
   return (
     <div className="mx-auto max-w-6xl">
       <PageHeader
-        title={`Welcome back, ${currentUser.name.split(' ')[0]}`}
+        title={`Welcome back, ${userProfile?.displayName}`}
         description="Here's a snapshot of your learning journey today."
       />
 
