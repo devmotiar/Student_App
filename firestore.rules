@@ -1,0 +1,55 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    // Users can read/update their own profile. Admins can read any profile.
+    // Nobody (not even the owner) can change their own `role` field directly -
+    // role changes must be done from the Firebase Console or a trusted backend.
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId) &&
+        request.resource.data.role == resource.data.role;
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // Live classes & recorded videos: any signed-in student can read,
+    // only admins can create/update/delete.
+    match /liveClasses/{classId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    match /recordedVideos/{videoId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    // Courses catalog: readable by signed-in users, editable by admins only.
+    match /courses/{courseId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    // Per-user progress data: users manage only their own records.
+    match /userProgress/{userId}/{document=**} {
+      allow read, write: if isOwner(userId) || isAdmin();
+    }
+  }
+}
