@@ -54,7 +54,7 @@ export function AuthShell({
         </div>
 
         <p className="relative text-sm text-primary-foreground/70">
-          &copy; {new Date().getFullYear()} Lumina Learning. All rights reserved.
+          &copy; {new Date().getFullYear()} SITM Learning. All rights reserved.
         </p>
       </section>
 

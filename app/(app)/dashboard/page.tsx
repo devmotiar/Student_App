@@ -16,20 +16,16 @@ import { UpcomingLiveClasses } from '@/components/ui/upcominglive';
 import RecommendedCourses from '@/components/ui/RecommendedCourses'
 import { where } from 'firebase/firestore';
 
+import { useAuth } from '@/lib/hooks/useAuth'
 
 export default function DashboardPage() {
-  const { data: courses, loading: coursesLoading } = useFirebaseData('courses');
-  const { data: liveClasses, loading: classesLoading } =
-    useFirebaseData('liveClasses');
+  const { data: courses, loading: coursesLoading } = useFirebaseData('courses')
+  const { data: liveClasses, loading: classesLoading } = useFirebaseData('liveClasses')
+  const {userProfile}=useAuth()
 
-  // ---- Business logic untouched ----
-  const inProgress = courses.filter(
-    (c: any) => c.progress > 0 && c.progress < 100
-  );
-  const recommended = courses.filter((c: any) => c.progress === 0).slice(0, 3);
-  const upcoming = liveClasses
-    .filter((c: any) => c.status !== 'ended')
-    .slice(0, 3);
+  const inProgress = courses.filter((c: any) => c.progress > 0 && c.progress < 100)
+  const recommended = courses.filter((c: any) => c.progress === 0).slice(0, 3)
+  const upcoming = liveClasses.filter((c: any) => c.status !== 'ended').slice(0, 3)
 
   const isLoading = coursesLoading || classesLoading;
 
@@ -37,7 +33,7 @@ export default function DashboardPage() {
     return (
       <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-0">
         <PageHeader
-          title={`Welcome back, ${currentUser.name.split(' ')[0]}`}
+          title={`Welcome back, ${userProfile?.displayName}`}
           description="Here's a snapshot of your learning journey today."
         />
         {/* Loading skeletons */}
@@ -58,6 +54,7 @@ export default function DashboardPage() {
       </div>
     );
   }
+  console.log("demo")
 
   return (
     <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-0">
@@ -71,7 +68,7 @@ export default function DashboardPage() {
             Good to see you again
           </span>
           <h1 className="mt-4 font-heading text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-            Welcome back, {currentUser.name.split(' ')[0]} 👋
+            Welcome back, {userProfile?.displayName} 👋
           </h1>
           <p className="mt-1.5 max-w-md text-sm text-muted-foreground">
             Here's a snapshot of your learning journey today.
