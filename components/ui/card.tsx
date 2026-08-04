@@ -1,3 +1,4 @@
+
 import * as React from 'react'
 
 import { cn } from '@/lib/utils'
@@ -7,7 +8,7 @@ function Card({ className, ...props }: React.ComponentProps<'div'>) {
     <div
       data-slot="card"
       className={cn(
-        'rounded-xl border border-border bg-card text-card-foreground shadow-sm',
+        'rounded-2xl border border-border/60 bg-card text-card-foreground shadow-sm transition-shadow duration-300',
         className,
       )}
       {...props}
@@ -21,12 +22,15 @@ function CardHeader({ className, ...props }: React.ComponentProps<'div'>) {
 
 function CardTitle({ className, ...props }: React.ComponentProps<'h3'>) {
   return (
-    <h3 className={cn('text-base font-semibold leading-tight', className)} {...props} />
+    <h3
+      className={cn('font-heading text-base font-semibold leading-tight tracking-tight', className)}
+      {...props}
+    />
   )
 }
 
 function CardDescription({ className, ...props }: React.ComponentProps<'p'>) {
-  return <p className={cn('text-sm text-muted-foreground', className)} {...props} />
+  return <p className={cn('text-sm leading-relaxed text-muted-foreground', className)} {...props} />
 }
 
 function CardContent({ className, ...props }: React.ComponentProps<'div'>) {
