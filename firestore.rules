@@ -34,6 +34,29 @@ service cloud.firestore {
     match /liveClasses/{classId} {
       allow read: if isSignedIn();
       allow write: if isAdmin();
+
+      match /roomParticipants/{participantId} {
+        allow read: if isSignedIn() && isLiveClass(classId);
+        allow create, update: if isSignedIn() && isLiveClass(classId) &&
+          participantId == request.auth.uid &&
+          request.resource.data.uid == request.auth.uid;
+        allow delete: if isSignedIn() && participantId == request.auth.uid;
+      }
+
+      match /signals/{signalId} {
+        allow read, delete: if isSignedIn() &&
+          (resource.data.senderId == request.auth.uid || resource.data.recipientId == request.auth.uid);
+        allow create: if isSignedIn() && isLiveClass(classId) &&
+          request.resource.data.senderId == request.auth.uid &&
+          request.resource.data.recipientId is string;
+      }
+
+      match /messages/{messageId} {
+        allow read: if isSignedIn();
+        allow create: if isSignedIn() && isLiveClass(classId) &&
+          request.resource.data.uid == request.auth.uid;
+        allow delete: if isAdmin();
+      }
     }
 
     match /recordedVideos/{videoId} {
@@ -50,6 +73,11 @@ service cloud.firestore {
     // Per-user progress data: users manage only their own records.
     match /userProgress/{userId}/{document=**} {
       allow read, write: if isOwner(userId) || isAdmin();
+    }
+
+    function isLiveClass(classId) {
+      return exists(/databases/$(database)/documents/liveClasses/$(classId)) &&
+        get(/databases/$(database)/documents/liveClasses/$(classId)).data.status == 'live';
     }
   }
 }

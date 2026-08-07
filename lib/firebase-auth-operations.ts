@@ -10,7 +10,7 @@ import {
   updateProfile,
 } from 'firebase/auth'
 import { auth, db } from './firebase'
-import { doc, setDoc, getDoc, Timestamp } from 'firebase/firestore'
+import { doc, setDoc, getDoc, Timestamp, onSnapshot } from 'firebase/firestore'
 
 export interface UserProfile {
   uid: string
@@ -153,6 +153,21 @@ export async function getUserProfile(uid: string): Promise<UserProfile | null> {
   } catch (error: any) {
     throw new Error(error.message || 'Failed to fetch user profile')
   }
+}
+
+/** Listen to the signed-in user's profile so enrollment changes are reflected immediately. */
+export function subscribeToUserProfile(
+  uid: string,
+  callback: (profile: UserProfile | null) => void,
+  onError?: (error: Error) => void
+): () => void {
+  return onSnapshot(
+    doc(db, 'users', uid),
+    (snapshot) => {
+      callback(snapshot.exists() ? (snapshot.data() as UserProfile) : null)
+    },
+    (error) => onError?.(error as Error)
+  )
 }
 
 /**

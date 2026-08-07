@@ -6,6 +6,7 @@ import {
   doc,
   DocumentData,
   Timestamp,
+  increment,
 } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 
@@ -103,7 +104,7 @@ export async function joinLiveClass(
   try {
     const classRef = doc(db, `liveClasses/${liveClassId}`)
     await updateDoc(classRef, {
-      attendees: Math.max(0, (await import('firebase/firestore')).increment(1)),
+      attendees: increment(1),
       updatedAt: Timestamp.now(),
     })
   } catch (error) {

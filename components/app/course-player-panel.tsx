@@ -27,7 +27,7 @@ export function CoursePlayerPanel({
   const searchParams = useSearchParams()
 
   // Prevent undefined errors
-  const lessons = course.lessons ?? []
+  const lessons = useMemo(() => course.lessons ?? [], [course.lessons])
 
   const [activeLessonId, setActiveLessonId] = useState(
     initialLessonId ?? lessons[0]?.id
