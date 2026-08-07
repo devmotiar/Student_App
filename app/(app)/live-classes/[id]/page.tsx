@@ -1,13 +1,23 @@
 'use client'
 
 import Link from 'next/link'
-import { ArrowLeft, Loader2, Clock, Users, ExternalLink } from 'lucide-react'
+import {
+  ArrowLeft,
+  Calendar,
+  CheckCircle2,
+  Clock,
+  ExternalLink,
+  Loader2,
+  PlayCircle,
+  Radio,
+} from 'lucide-react'
 
 import { useFirebaseDocument } from '@/lib/hooks/useFirebaseData'
 import { useAuth } from '@/lib/hooks/useAuth'
-import { incrementLiveClassAttendees } from '@/lib/firebase-operations'
+import { LiveClassRoom } from '@/components/live-class-room'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
 
 interface LiveClass {
   id: string
@@ -18,232 +28,160 @@ interface LiveClass {
   time: string
   duration: string
   status: 'live' | 'upcoming' | 'ended'
-  attendees: number
+  attendees?: number
   description?: string
   meetingLink?: string
   recordingUrl?: string
   requirements?: string[]
 }
-
 export default function LiveClassDetailPage({ params }: { params: { id: string } }) {
   const { user } = useAuth()
   const { data: liveClass, loading } = useFirebaseDocument<LiveClass>('liveClasses', params.id)
 
-  const handleJoin = async () => {
-    if (!liveClass?.meetingLink) return
-    try {
-      await incrementLiveClassAttendees(liveClass.id)
-    } catch (err) {
-      console.error('Failed to update attendee count:', err)
-    }
-    window.open(liveClass.meetingLink, '_blank', 'noopener,noreferrer')
-  }
-
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="size-8 animate-spin text-primary" />
+      <div className="flex flex-col items-center justify-center py-20">
+        <Loader2 className="size-10 animate-spin text-primary" />
+        <p className="mt-4 text-sm text-muted-foreground">Loading live class session...</p>
       </div>
     )
   }
 
   if (!liveClass) {
     return (
-      <div className="text-center py-12">
-        <p className="text-muted-foreground mb-4">Live class not found</p>
-        <Link href="/live-classes">
-          <Button variant="outline">Back to Live Classes</Button>
+      <div className="mx-auto max-w-lg rounded-3xl border border-border bg-card p-10 text-center">
+        <Radio className="mx-auto size-12 text-muted-foreground" />
+        <h2 className="mt-4 text-xl font-bold text-foreground">Live Class Not Found</h2>
+        <p className="mt-2 text-sm text-muted-foreground">
+          The requested class session could not be found or has been removed.
+        </p>
+        <Link href="/live-classes" className="mt-6 inline-block">
+          <Button className="rounded-full">Back to Live Classes</Button>
         </Link>
       </div>
     )
   }
 
-  const description =
-    liveClass.description ||
-    `Join this live class to learn directly from ${liveClass.instructor}. This interactive session covers important topics in ${liveClass.course}.`
   const requirements = liveClass.requirements || [
-    'Stable internet connection',
-    'Microphone (optional)',
-    'Webcam (optional)',
-    'Headphones recommended',
+    'Stable high-speed internet connection',
+    'Headphones or earphones for clear audio',
+    'Microphone for interactive Q&A (optional)',
+    'Course notebook or coding environment ready',
   ]
 
   return (
-    <div className="mx-auto max-w-4xl">
-      {/* Back button */}
-      <Link href="/live-classes">
-        <Button variant="ghost" size="sm" className="mb-6">
-          <ArrowLeft className="size-4 mr-2" />
-          Back to Live Classes
-        </Button>
-      </Link>
+    <div className="mx-auto max-w-6xl pb-12">
+      <div className="mb-6 flex items-center justify-between">
+        <Link href="/live-classes">
+          <Button variant="ghost" size="sm" className="rounded-full text-xs">
+            <ArrowLeft className="mr-1.5 size-4" /> Back to Live Classes
+          </Button>
+        </Link>
+        <Badge variant={liveClass.status === 'live' ? 'live' : 'secondary'} className="capitalize">
+          {liveClass.status}
+        </Badge>
+      </div>
 
-      <div className="grid gap-6 md:grid-cols-3">
-        {/* Main content */}
-        <div className="md:col-span-2">
-          {/* Hero / join card */}
-          <Card className="mb-6 flex flex-col items-center justify-center gap-4 bg-gradient-to-br from-slate-900 to-slate-800 p-10 text-center">
-            {liveClass.status === 'live' && (
-              <span className="inline-flex items-center gap-2 rounded-full bg-destructive/20 px-3 py-1 text-xs font-semibold text-red-300">
-                <span className="relative flex size-2">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75" />
-                  <span className="relative inline-flex size-2 rounded-full bg-red-400" />
-                </span>
-                LIVE NOW
-              </span>
-            )}
-            <h2 className="text-xl font-semibold text-white text-balance">{liveClass.title}</h2>
-            <p className="text-sm text-slate-300">Instructor: {liveClass.instructor}</p>
-            <p className="inline-flex items-center gap-2 text-sm font-semibold text-blue-300">
-              <Users className="size-4" /> {liveClass.attendees} attending
-            </p>
-
-            {liveClass.status === 'live' && liveClass.meetingLink && user && (
-              <Button onClick={handleJoin} size="lg" className="mt-2">
-                Join Live Class <ExternalLink className="size-4 ml-2" />
-              </Button>
-            )}
-            {liveClass.status === 'upcoming' && (
-              <p className="text-sm font-medium text-yellow-300">
-                Starts {liveClass.date} at {liveClass.time}
-              </p>
-            )}
-            {liveClass.status === 'ended' && liveClass.recordingUrl && (
-              <a href={liveClass.recordingUrl} target="_blank" rel="noopener noreferrer">
-                <Button variant="secondary" className="mt-2">
-                  Watch Recording
-                </Button>
-              </a>
-            )}
-            {liveClass.status === 'live' && !liveClass.meetingLink && (
-              <p className="text-xs text-slate-400">
-                The meeting link hasn&apos;t been added yet. Please check back shortly.
-              </p>
-            )}
-            {!user && (
-              <Link href="/login">
-                <Button className="mt-2">Sign in to Join</Button>
-              </Link>
-            )}
-          </Card>
-
-          {/* Class info */}
-          <Card className="p-6 mb-6">
-            <h1 className="text-3xl font-bold text-foreground mb-2">{liveClass.title}</h1>
-            <p className="text-muted-foreground mb-4">by {liveClass.instructor}</p>
-
-            <div className="flex gap-4 mb-6 flex-wrap">
-              <div className="flex items-center gap-2">
-                <div
-                  className={`w-3 h-3 rounded-full ${
-                    liveClass.status === 'live'
-                      ? 'bg-red-500 animate-pulse'
-                      : liveClass.status === 'upcoming'
-                        ? 'bg-yellow-500'
-                        : 'bg-gray-400'
-                  }`}
+      <div className="grid gap-6 lg:grid-cols-3">
+        <div className="space-y-6 lg:col-span-2">
+          {liveClass.status === 'live' ? (
+            user ? (
+              <>
+                <LiveClassRoom
+                  classId={liveClass.id}
+                  userId={user.uid}
+                  displayName={user.displayName || user.email?.split('@')[0] || 'Student'}
                 />
-                <span className="font-medium capitalize">{liveClass.status}</span>
+                {liveClass.meetingLink && (
+                  <Card className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border-border/60 p-4">
+                    <p className="text-xs text-muted-foreground">
+                      Having trouble joining the internal room? Use the external meeting link.
+                    </p>
+                    <a href={liveClass.meetingLink} target="_blank" rel="noopener noreferrer">
+                      <Button variant="outline" size="sm" className="rounded-full text-xs">
+                        Open Zoom / Meet <ExternalLink className="ml-1.5 size-3.5" />
+                      </Button>
+                    </a>
+                  </Card>
+                )}
+              </>
+            ) : (
+              <Card className="rounded-3xl border-red-500/30 bg-red-950/10 p-10 text-center">
+                <Radio className="mx-auto size-10 text-red-500" />
+                <h2 className="mt-4 text-xl font-bold">Sign in to join this class</h2>
+                <Link href="/login" className="mt-5 inline-block">
+                  <Button className="rounded-full">Sign in</Button>
+                </Link>
+              </Card>
+            )
+          ) : liveClass.status === 'upcoming' ? (
+            <Card className="rounded-3xl border-border/80 bg-gradient-to-br from-primary/10 via-card to-card p-8 shadow-sm">
+              <Badge className="bg-primary/20 text-primary hover:bg-primary/30">
+                <Calendar className="mr-1 size-3" /> Upcoming Live Class
+              </Badge>
+              <h2 className="mt-4 text-2xl font-extrabold text-foreground">{liveClass.title}</h2>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Instructor: <span className="font-semibold text-foreground">{liveClass.instructor}</span> ·{' '}
+                Course: <span className="font-semibold text-foreground">{liveClass.course}</span>
+              </p>
+              <div className="mt-6 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-border/60 bg-muted/40 p-4">
+                <div className="flex items-center gap-3">
+                  <Clock className="size-5 text-primary" />
+                  <span className="text-sm font-bold">{liveClass.date || 'TBA'}, {liveClass.time || 'TBA'}</span>
+                </div>
+                {liveClass.meetingLink && (
+                  <a href={liveClass.meetingLink} target="_blank" rel="noopener noreferrer">
+                    <Button className="rounded-full text-xs">Meeting Link <ExternalLink className="ml-1.5 size-3.5" /></Button>
+                  </a>
+                )}
               </div>
-              <div className="flex items-center gap-2">
-                <Users className="size-4 text-muted-foreground" />
-                <span className="text-muted-foreground">{liveClass.attendees} attending</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Clock className="size-4 text-muted-foreground" />
-                <span className="text-muted-foreground">{liveClass.duration}</span>
-              </div>
-            </div>
+            </Card>
+          ) : (
+            <Card className="rounded-3xl border-border/80 p-8 shadow-sm">
+              <Badge variant="secondary" className="mb-3">Class Concluded</Badge>
+              <h2 className="text-2xl font-bold text-foreground">{liveClass.title}</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Streamed by {liveClass.instructor} on {liveClass.date || 'Past session'}
+              </p>
+              {liveClass.recordingUrl ? (
+                <a href={liveClass.recordingUrl} target="_blank" rel="noopener noreferrer" className="mt-6 inline-block">
+                  <Button className="rounded-full text-xs"><PlayCircle className="mr-1.5 size-4" /> Watch Recording</Button>
+                </a>
+              ) : (
+                <p className="mt-4 text-xs text-muted-foreground">The recording is being processed and will be available soon.</p>
+              )}
+            </Card>
+          )}
 
-            <div className="mt-6">
-              <h2 className="font-semibold text-foreground mb-2">About this class</h2>
-              <p className="text-foreground">{description}</p>
-            </div>
+          <Card className="rounded-3xl border-border/60 p-6">
+            <h3 className="text-lg font-bold text-foreground">About This Live Session</h3>
+            <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
+              {liveClass.description || `Join instructor ${liveClass.instructor} for a comprehensive live deep-dive into ${liveClass.title}. You'll have the opportunity to ask questions in real time and gain practical insights.`}
+            </p>
           </Card>
+        </div>
 
-          {/* Requirements */}
-          <Card className="p-6">
-            <h2 className="font-semibold text-foreground mb-4">What you&apos;ll need</h2>
-            <ul className="space-y-2">
-              {requirements.map((req, idx) => (
-                <li key={idx} className="flex gap-2 text-foreground">
-                  <span className="text-primary">✓</span>
-                  {req}
+        <div className="space-y-6">
+          <Card className="rounded-3xl border-border/60 p-6">
+            <h3 className="text-lg font-bold text-foreground">Preparation & Requirements</h3>
+            <ul className="mt-4 space-y-2.5">
+              {requirements.map((requirement) => (
+                <li key={requirement} className="flex items-start gap-2.5 text-xs text-foreground">
+                  <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-primary" />
+                  <span>{requirement}</span>
                 </li>
               ))}
             </ul>
           </Card>
-        </div>
 
-        {/* Sidebar */}
-        <div>
-          <Card className="p-6 sticky top-20">
-            <h3 className="font-semibold mb-4">Class Details</h3>
-
-            <div className="space-y-4 mb-6">
-              <div>
-                <p className="text-xs text-muted-foreground uppercase font-semibold mb-1">Course</p>
-                <p className="text-foreground font-medium">{liveClass.course}</p>
-              </div>
-
-              <div>
-                <p className="text-xs text-muted-foreground uppercase font-semibold mb-1">
-                  Instructor
-                </p>
-                <p className="text-foreground font-medium">{liveClass.instructor}</p>
-              </div>
-
-              <div>
-                <p className="text-xs text-muted-foreground uppercase font-semibold mb-1">
-                  Date &amp; Time
-                </p>
-                <p className="text-foreground font-medium">
-                  {liveClass.date} at {liveClass.time}
-                </p>
-              </div>
-
-              <div>
-                <p className="text-xs text-muted-foreground uppercase font-semibold mb-1">
-                  Duration
-                </p>
-                <p className="text-foreground font-medium">{liveClass.duration}</p>
-              </div>
-
-              <div>
-                <p className="text-xs text-muted-foreground uppercase font-semibold mb-1">
-                  Attendees
-                </p>
-                <p className="text-foreground font-medium">{liveClass.attendees} participants</p>
-              </div>
-            </div>
-
-            <div className="space-y-2 pt-4 border-t border-border">
-              {liveClass.status === 'live' && user && liveClass.meetingLink && (
-                <Button onClick={handleJoin} className="w-full">
-                  Join Now <ExternalLink className="size-4 ml-2" />
-                </Button>
-              )}
-              {liveClass.status === 'upcoming' && (
-                <div className="bg-yellow-50 dark:bg-yellow-950 rounded p-2 text-center">
-                  <p className="text-xs font-semibold text-yellow-600 dark:text-yellow-300">
-                    Upcoming Session
-                  </p>
-                </div>
-              )}
-              {liveClass.status === 'ended' && (
-                <div className="bg-gray-50 dark:bg-gray-900 rounded p-2 text-center">
-                  <p className="text-xs font-semibold text-gray-600 dark:text-gray-300">
-                    Class Ended
-                  </p>
-                </div>
-              )}
-            </div>
-
-            {!user && (
-              <Link href="/login">
-                <Button className="w-full mt-4">Sign in to Join</Button>
-              </Link>
-            )}
+          <Card className="rounded-3xl border-border/60 p-6">
+            <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Session Details</h3>
+            <dl className="mt-4 space-y-3 text-xs">
+              <div className="flex justify-between gap-4 border-b border-border/40 py-1.5"><dt className="text-muted-foreground">Course</dt><dd className="font-semibold text-right">{liveClass.course}</dd></div>
+              <div className="flex justify-between gap-4 border-b border-border/40 py-1.5"><dt className="text-muted-foreground">Instructor</dt><dd className="font-semibold text-right">{liveClass.instructor}</dd></div>
+              <div className="flex justify-between gap-4 border-b border-border/40 py-1.5"><dt className="text-muted-foreground">Schedule</dt><dd className="font-semibold text-right">{liveClass.date || 'TBA'} · {liveClass.time || 'TBA'}</dd></div>
+              <div className="flex justify-between gap-4 py-1.5"><dt className="text-muted-foreground">Duration</dt><dd className="font-semibold text-right">{liveClass.duration || '60 min'}</dd></div>
+            </dl>
           </Card>
         </div>
       </div>

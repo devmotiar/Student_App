@@ -4,8 +4,8 @@ export type Course = {
   category: string
   instructor: string
   image: string
-  thumbnail:string
-  youtubeUrl:string
+  thumbnail?: string
+  youtubeUrl?: string
   lessons: number
   duration: string
   progress: number

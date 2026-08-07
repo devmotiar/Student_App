@@ -128,7 +128,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { Clock, PlayCircle, Star } from 'lucide-react'
 
-import type { Course } from '@/lib/mock-data'
+import type { CourseRecord } from '@/lib/learning-types'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { ProgressBar } from '@/components/app/progress-bar'
@@ -147,8 +147,10 @@ function getYoutubeId(url?: string | null): string {
   }
 }
 
-export function CourseCard({ course }: { course: Course }) {
-  const started = course.progress > 0
+export function CourseCard({ course }: { course: CourseRecord }) {
+  const progress = Math.min(100, Math.max(0, Number(course.progress) || 0))
+  const lessonCount = course.lessons || course.allCourse?.length || 0
+  const started = progress > 0
   const [hovered, setHovered] = useState(false)
   const videoId = getYoutubeId(course.youtubeUrl)
 
@@ -210,11 +212,11 @@ export function CourseCard({ course }: { course: Course }) {
           <div className="mt-3 flex items-center gap-3 text-xs text-muted-foreground">
             <span className="inline-flex items-center gap-1">
               <PlayCircle className="size-3.5" />
-              {course.lessons} lessons
+              {lessonCount} lessons
             </span>
             <span className="inline-flex items-center gap-1">
               <Clock className="size-3.5" />
-              {course.duration}
+              {course.duration || 'Self-paced'}
             </span>
           </div>
         </div>
@@ -224,12 +226,12 @@ export function CourseCard({ course }: { course: Course }) {
         {started ? (
           <div className="flex flex-col gap-2">
             <div className="flex items-center justify-between text-xs">
-              <span className="font-medium text-foreground">{course.progress}% complete</span>
+                <span className="font-medium text-foreground">{progress}% complete</span>
               <span className="text-muted-foreground">
-                {Math.round((course.progress / 100) * course.lessons)}/{course.lessons}
+                {Math.round((progress / 100) * lessonCount)}/{lessonCount}
               </span>
             </div>
-            <ProgressBar value={course.progress} />
+            <ProgressBar value={progress} />
             <Link href={startHref}>
               <Button className="mt-1 h-9 w-full rounded-full text-xs">Continue learning</Button>
             </Link>

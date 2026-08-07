@@ -4,22 +4,29 @@ import { useState, useEffect } from 'react'
 import { Loader2, TrendingUp, Award, Clock, BookOpen, CheckCircle2 } from 'lucide-react'
 
 import { useAuth } from '@/lib/hooks/useAuth'
-import { getLearningStats } from '@/lib/firebase-progress-operations'
+import { formatLearningHours, getLearningStats } from '@/lib/firebase-progress-operations'
+import { useFirebaseData } from '@/lib/hooks/useFirebaseData'
+import type { CourseRecord, LearningStats } from '@/lib/learning-types'
 import { PageHeader } from '@/components/app/page-header'
 import { Card } from '@/components/ui/card'
 
 export default function ProgressPage() {
-  const { user, loading: authLoading } = useAuth()
-  const [stats, setStats] = useState<any>(null)
+  const { user, userProfile, loading: authLoading } = useAuth()
+  const { data: courses, loading: coursesLoading } = useFirebaseData<CourseRecord>('courses')
+  const [stats, setStats] = useState<LearningStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
   useEffect(() => {
-    if (!user || authLoading) return
+    if (!user || authLoading || coursesLoading) return
 
     const fetchStats = async () => {
       try {
-        const learningStats = await getLearningStats(user.uid)
+        const learningStats = await getLearningStats(
+          user.uid,
+          courses,
+          userProfile?.enrolledCourses || []
+        )
         setStats(learningStats)
       } catch (err) {
         console.error('[v0] Failed to fetch stats:', err)
@@ -30,9 +37,9 @@ export default function ProgressPage() {
     }
 
     fetchStats()
-  }, [user, authLoading])
+  }, [user, authLoading, coursesLoading, courses, userProfile?.enrolledCourses])
 
-  if (authLoading || loading) {
+  if (authLoading || loading || coursesLoading) {
     return (
       <div className="flex items-center justify-center py-12">
         <Loader2 className="size-8 animate-spin text-primary" />
@@ -107,9 +114,9 @@ export default function ProgressPage() {
             </div>
             <p className="text-sm text-muted-foreground">Learning Time</p>
           </div>
-          <p className="text-3xl font-bold text-foreground">{stats?.totalWatchTime || 0}h</p>
+          <p className="text-3xl font-bold text-foreground">{formatLearningHours(stats?.totalLearnedHours)}h</p>
           <p className="text-xs text-muted-foreground mt-2">
-            {stats?.totalVideosWatched || 0} videos watched
+            {stats?.totalVideosWatched || 0} videos watched · hybrid progress metric
           </p>
         </Card>
       </div>
@@ -156,7 +163,7 @@ export default function ProgressPage() {
                 <span className="text-sm text-muted-foreground">{stats?.totalVideosWatched || 0}</span>
               </div>
               <p className="text-xs text-muted-foreground mt-1">
-                Total watch time: {stats?.totalWatchTime || 0} hours
+                Exact playback time: {Math.round((stats?.totalWatchTime || 0) / 60)} minutes
               </p>
             </div>
           </div>
@@ -169,9 +176,9 @@ export default function ProgressPage() {
             Achievements & Badges
           </h2>
           
-          {stats?.achievements > 0 ? (
+          {(stats?.achievements || 0) > 0 ? (
             <div className="space-y-3">
-              {[...Array(Math.min(stats.achievements, 3))].map((_, i) => (
+              {[...Array(Math.min(stats?.achievements || 0, 3))].map((_, i) => (
                 <div key={i} className="flex items-center gap-3 p-3 bg-gradient-to-r from-yellow-50 to-orange-50 dark:from-yellow-950/30 dark:to-orange-950/30 rounded-lg">
                   <div className="text-2xl">⭐</div>
                   <div className="flex-1">
@@ -208,10 +215,10 @@ export default function ProgressPage() {
           <div className="p-4 bg-slate-50 dark:bg-slate-900 rounded-lg">
             <p className="text-sm text-muted-foreground mb-1">Recommended Next</p>
             <p className="text-2xl font-bold text-foreground">
-              {stats?.inProgressCourses > 0 ? 'Continue' : 'Explore'}
+              {(stats?.inProgressCourses || 0) > 0 ? 'Continue' : 'Explore'}
             </p>
             <p className="text-xs text-muted-foreground mt-2">
-              {stats?.inProgressCourses > 0
+              {(stats?.inProgressCourses || 0) > 0
                 ? 'Finish your current courses'
                 : 'Start a new course today'}
             </p>
@@ -220,9 +227,9 @@ export default function ProgressPage() {
           <div className="p-4 bg-slate-50 dark:bg-slate-900 rounded-lg">
             <p className="text-sm text-muted-foreground mb-1">Learning Pace</p>
             <p className="text-2xl font-bold text-foreground">
-              {stats?.totalWatchTime > 10 ? 'Excellent' : stats?.totalWatchTime > 5 ? 'Good' : 'Just started'}
+              {(stats?.totalWatchTime || 0) > 10 ? 'Excellent' : (stats?.totalWatchTime || 0) > 5 ? 'Good' : 'Just started'}
             </p>
-            <p className="text-xs text-muted-foreground mt-2">You're making great progress!</p>
+            <p className="text-xs text-muted-foreground mt-2">You&apos;re making great progress!</p>
           </div>
         </div>
       </Card>

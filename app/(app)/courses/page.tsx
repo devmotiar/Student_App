@@ -7,17 +7,19 @@ import { useFirebaseData } from '@/lib/hooks/useFirebaseData'
 import { PageHeader } from '@/components/app/page-header'
 import { CourseCard } from '@/components/app/course-card'
 import { cn } from '@/lib/utils'
+import type { CourseRecord } from '@/lib/learning-types'
 
 const filters = ['All', 'In progress', 'Completed', 'Not started'] as const
 
 export default function CoursesPage() {
   const [filter, setFilter] = useState<(typeof filters)[number]>('All')
-  const { data: courses, loading } = useFirebaseData('courses')
+  const { data: courses, loading } = useFirebaseData<CourseRecord>('courses')
 
-  const filtered = courses.filter((c: any) => {
-    if (filter === 'In progress') return c.progress > 0 && c.progress < 100
-    if (filter === 'Completed') return c.progress >= 100
-    if (filter === 'Not started') return c.progress === 0
+  const filtered = courses.filter((c) => {
+    const progress = Number(c.progress) || 0
+    if (filter === 'In progress') return progress > 0 && progress < 100
+    if (filter === 'Completed') return progress >= 100
+    if (filter === 'Not started') return progress === 0
     return true
   })
 
@@ -35,9 +37,10 @@ export default function CoursesPage() {
             f === 'All'
               ? courses.length
               : courses.filter((c) => {
-                  if (f === 'In progress') return c.progress > 0 && c.progress < 100
-                  if (f === 'Completed') return c.progress >= 100
-                  return c.progress === 0
+                  const progress = Number(c.progress) || 0
+                  if (f === 'In progress') return progress > 0 && progress < 100
+                  if (f === 'Completed') return progress >= 100
+                  return progress === 0
                 }).length
           return (
             <button

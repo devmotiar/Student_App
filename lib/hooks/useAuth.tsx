@@ -2,7 +2,11 @@
 
 import { useEffect, useState, createContext, useContext, ReactNode } from 'react'
 import { User } from 'firebase/auth'
-import { onAuthStateChange, getUserProfile, UserProfile } from '../firebase-auth-operations'
+import {
+  onAuthStateChange,
+  subscribeToUserProfile,
+  UserProfile,
+} from '../firebase-auth-operations'
 import { isFirebaseConfigured } from '../firebase'
 
 interface AuthContextType {
@@ -29,25 +33,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return
     }
 
-    const unsubscribe = onAuthStateChange(async (currentUser) => {
-      try {
-        setUser(currentUser)
-        
-        if (currentUser) {
-          const profile = await getUserProfile(currentUser.uid)
-          setUserProfile(profile)
-        } else {
-          setUserProfile(null)
-        }
-      } catch (err) {
-        console.error('[v0] Auth error:', err)
-        setError(err instanceof Error ? err.message : 'Auth error')
-      } finally {
+    let unsubscribeProfile: (() => void) | null = null
+    const unsubscribeAuth = onAuthStateChange((currentUser) => {
+      unsubscribeProfile?.()
+      unsubscribeProfile = null
+      setUser(currentUser)
+
+      if (currentUser) {
+        unsubscribeProfile = subscribeToUserProfile(
+          currentUser.uid,
+          (profile) => {
+            setUserProfile(profile)
+            setLoading(false)
+          },
+          (profileError) => {
+            console.error('[auth] Profile error:', profileError)
+            setError(profileError.message)
+            setLoading(false)
+          }
+        )
+      } else {
+        setUserProfile(null)
         setLoading(false)
       }
     })
 
-    return () => unsubscribe()
+    return () => {
+      unsubscribeProfile?.()
+      unsubscribeAuth()
+    }
   }, [])
 
   return (
