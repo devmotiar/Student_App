@@ -1,22 +1,9 @@
 import { Analytics } from '@vercel/analytics/next'
 import type { Metadata, Viewport } from 'next'
-import { Inter, Plus_Jakarta_Sans } from 'next/font/google'
 import { AuthProvider } from '@/lib/hooks/useAuth'
 import { isFirebaseConfigured, firebaseInitError } from '@/lib/firebase'
 import { FirebaseSetupNotice } from '@/components/firebase-setup-notice'
 import './globals.css'
-
-const inter = Inter({
-  subsets: ['latin'],
-  variable: '--font-inter',
-  display: 'swap',
-})
-
-const jakarta = Plus_Jakarta_Sans({
-  subsets: ['latin'],
-  variable: '--font-jakarta',
-  display: 'swap',
-})
 
 export const metadata: Metadata = {
   title: 'SITM — Learn Anything, Anywhere',
@@ -53,7 +40,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" className={`bg-background ${inter.variable} ${jakarta.variable}`}>
+    <html lang="en" className="bg-background">
       <body className="antialiased">
         {isFirebaseConfigured && !firebaseInitError ? (
           <AuthProvider>{children}</AuthProvider>

@@ -39,7 +39,7 @@ export default function LessonPage({
         title: 'Course Introduction',
         duration: '8:45',
         videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-library/sample/BigBuckBunny.mp4',
-        description: 'Welcome to the course! In this introduction, we'll cover the course outline, learning objectives, and how to get the most out of this experience.',
+        description: "Welcome to the course! In this introduction, we'll cover the course outline, learning objectives, and how to get the most out of this experience.",
         transcript: 'Welcome to our comprehensive course. Over the next weeks, you will learn...',
         materials: [
           { name: 'Course Overview PDF', url: '#' },
@@ -96,7 +96,10 @@ export default function LessonPage({
     if (Math.floor(currentTime) % 5 === 0) {
       if (user) {
         try {
-          await trackVideoWatch(user.uid, params.lessonId, currentTime, duration)
+          await trackVideoWatch(user.uid, params.lessonId, currentTime, duration, {
+            courseId: params.id,
+            lessonIndex: Math.max(0, Number(params.lessonId) - 1),
+          })
         } catch (err) {
           console.error('[v0] Failed to track video progress:', err)
         }
@@ -114,8 +117,12 @@ export default function LessonPage({
       setIsCompleted(true)
 
       // Update course progress
-      const newProgress = Math.min(100, progress + 20)
-      await updateCourseProgress(user.uid, params.id, newProgress)
+      const lessonIndex = Math.max(0, Number(params.lessonId) - 1)
+      const newProgress = Math.min(100, Math.round(((lessonIndex + 1) / 5) * 100))
+      await updateCourseProgress(user.uid, params.id, newProgress, {
+        lastWatchedLessonIndex: lessonIndex,
+        lastLessonTitle: lesson.title,
+      })
 
       console.log('[v0] Video completed and progress updated')
     } catch (err) {
