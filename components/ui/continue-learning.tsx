@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import {
@@ -9,18 +9,58 @@ import {
   BookOpen,
   Clock,
   ArrowRight,
-  Sparkles,
   RotateCcw,
-  Loader2,
-  ChevronRight,
 } from 'lucide-react'
+
 import { useAuth } from '@/lib/hooks/useAuth'
 import { useFirebaseData } from '@/lib/hooks/useFirebaseData'
 import { useCourseProgress } from '@/lib/hooks/useLearningData'
 import type { CourseRecord, EnrolledCourseViewModel } from '@/lib/learning-types'
 import { getCourseProgressStatus } from '@/lib/firebase-progress-operations'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
+
+const FALLBACK_THUMBNAIL =
+  'https://images.unsplash.com/photo-1633356122544-f134324a6cee?w=800&q=80'
+
+interface CoursePillProps {
+  course: EnrolledCourseViewModel
+  index: number
+  isSelected: boolean
+  onSelect: (index: number) => void
+}
+
+/**
+ * Extracted + memoized so switching the active course only re-renders the
+ * pill whose selected state changed, not the entire selector row.
+ */
+function CoursePill({ course, index, isSelected, onSelect }: CoursePillProps) {
+  const handleClick = useCallback(() => onSelect(index), [onSelect, index])
+
+  return (
+    <button
+      type="button"
+      onClick={handleClick}
+      aria-pressed={isSelected}
+      aria-label={`Switch to ${course.title || (course as any).Course}, ${course.progress}% complete`}
+      className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium transition-all ${
+        isSelected
+          ? 'border-primary bg-primary/10 text-primary font-semibold'
+          : 'border-border/60 bg-muted/20 text-muted-foreground hover:bg-muted/50 hover:text-foreground'
+      }`}
+    >
+      <span className="truncate max-w-[150px]">{course.title || (course as any).Course}</span>
+      <span
+        className={`rounded-full px-1.5 py-0.2 text-[10px] ${
+          course.status === 'Completed'
+            ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-bold'
+            : 'bg-primary/20 text-primary'
+        }`}
+      >
+        {course.progress}%
+      </span>
+    </button>
+  )
+}
 
 export default function ContinueLearning() {
   const { user, userProfile } = useAuth()
@@ -65,10 +105,7 @@ export default function ContinueLearning() {
           lastWatchedLessonIndex: lastIdx,
           currentLessonTitle,
           lastAccessedAt: prog?.lastAccessedAt,
-          thumbnail:
-            course.image ||
-            course.thumbnail ||
-            'https://images.unsplash.com/photo-1633356122544-f134324a6cee?w=800&q=80',
+          thumbnail: course.image || course.thumbnail || FALLBACK_THUMBNAIL,
         }
       })
       .filter(Boolean) as EnrolledCourseViewModel[]
@@ -86,14 +123,24 @@ export default function ContinueLearning() {
 
   const isLoading = coursesLoading || loadingProgress
 
+  const handleSelectCourse = useCallback((index: number) => {
+    setSelectedCourseIndex(index)
+  }, [])
+
   if (isLoading) {
     return (
-      <div className="w-full rounded-3xl border border-border/60 bg-card p-6 shadow-sm">
+      <div
+        className="w-full rounded-3xl border border-border/60 bg-card p-6 shadow-sm"
+        role="status"
+        aria-live="polite"
+        aria-busy="true"
+      >
+        <span className="sr-only">Loading continue learning…</span>
         <div className="flex items-center justify-between mb-6">
-          <div className="h-6 w-40 rounded-lg bg-muted/60 animate-pulse" />
-          <div className="h-4 w-16 rounded-lg bg-muted/40 animate-pulse" />
+          <div className="h-6 w-40 rounded-lg bg-muted/60 animate-pulse" aria-hidden="true" />
+          <div className="h-4 w-16 rounded-lg bg-muted/40 animate-pulse" aria-hidden="true" />
         </div>
-        <div className="flex flex-col gap-6 lg:flex-row animate-pulse">
+        <div className="flex flex-col gap-6 lg:flex-row animate-pulse" aria-hidden="true">
           <div className="h-44 w-full rounded-2xl bg-muted/60 lg:h-40 lg:w-72" />
           <div className="flex flex-1 flex-col justify-between space-y-4">
             <div className="space-y-2">
@@ -118,9 +165,7 @@ export default function ContinueLearning() {
       <div className="w-full rounded-3xl border border-border/60 bg-card p-6 shadow-sm">
         <div className="mb-4 flex items-center justify-between">
           <div>
-            <h2 className="text-xl font-bold tracking-tight text-foreground">
-              Continue Learning
-            </h2>
+            <h2 className="text-xl font-bold tracking-tight text-foreground">Continue Learning</h2>
             <p className="text-xs text-muted-foreground">Pick up right where you left off</p>
           </div>
           <Link
@@ -133,11 +178,12 @@ export default function ContinueLearning() {
 
         <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border/70 bg-muted/20 p-8 text-center">
           <div className="flex size-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-            <BookOpen className="size-6" />
+            <BookOpen className="size-6" aria-hidden="true" />
           </div>
           <h3 className="mt-3 text-base font-bold text-foreground">Start Your Learning Journey</h3>
           <p className="mt-1 max-w-sm text-xs text-muted-foreground">
-            You haven&apos;t enrolled in any courses yet. Explore our top courses and start watching lessons today!
+            You haven&apos;t enrolled in any courses yet. Explore our top courses and start watching
+            lessons today!
           </p>
 
           {featuredCourse ? (
@@ -145,8 +191,8 @@ export default function ContinueLearning() {
               href={`/courses/${featuredCourse.id}`}
               className="mt-4 inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-xs font-semibold text-primary-foreground shadow transition hover:bg-primary/90"
             >
-              <Play className="size-3.5 fill-current" />
-              Start {featuredCourse.title || featuredCourse.Course || 'Featured Course'}
+              <Play className="size-3.5 fill-current" aria-hidden="true" />
+              Start {(featuredCourse as any).title || (featuredCourse as any).Course || 'Featured Course'}
             </Link>
           ) : (
             <Link
@@ -161,9 +207,9 @@ export default function ContinueLearning() {
     )
   }
 
-  const activeCourse =
-    enrolledAndActiveCourses[selectedCourseIndex] || enrolledAndActiveCourses[0]
+  const activeCourse = enrolledAndActiveCourses[selectedCourseIndex] || enrolledAndActiveCourses[0]
   const resumeHref = `/courses/${activeCourse.id}?lesson=${activeCourse.lastWatchedLessonIndex}`
+  const isActiveCompleted = activeCourse.status === 'Completed'
 
   return (
     <div className="w-full rounded-3xl border border-border/60 bg-card p-6 shadow-sm transition-all hover:shadow-md">
@@ -171,12 +217,10 @@ export default function ContinueLearning() {
       <div className="mb-6 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div className="flex size-8 items-center justify-center rounded-xl bg-primary/10 text-primary">
-            <BookOpen className="size-4" />
+            <BookOpen className="size-4" aria-hidden="true" />
           </div>
           <div>
-            <h2 className="text-xl font-bold tracking-tight text-foreground">
-              Continue Learning
-            </h2>
+            <h2 className="text-xl font-bold tracking-tight text-foreground">Continue Learning</h2>
             <p className="text-xs text-muted-foreground">
               {enrolledAndActiveCourses.length}{' '}
               {enrolledAndActiveCourses.length === 1 ? 'course in progress' : 'courses in progress'}
@@ -189,7 +233,7 @@ export default function ContinueLearning() {
           className="inline-flex items-center gap-1 text-xs font-semibold text-primary transition hover:underline"
         >
           View all
-          <ArrowRight className="size-3" />
+          <ArrowRight className="size-3" aria-hidden="true" />
         </Link>
       </div>
 
@@ -201,23 +245,26 @@ export default function ContinueLearning() {
             src={activeCourse.thumbnail || '/placeholder.svg'}
             alt={activeCourse.title || 'Course thumbnail'}
             fill
+            // This card is typically rendered above the fold on the dashboard,
+            // so prioritize it for a better LCP instead of lazy-loading.
+            priority
             className="object-cover transition duration-300 hover:scale-105"
             sizes="(max-width: 768px) 100vw, 300px"
           />
 
           {/* Gradient Overlay */}
-          <div className="absolute inset-0 bg-gradient-to-tr from-black/40 via-black/10 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-tr from-black/40 via-black/10 to-transparent" aria-hidden="true" />
 
           {/* Status Badge: "In Progress" if < 100%, "Completed" if reaches 100% */}
           <div className="absolute right-3 top-3">
-            {activeCourse.status === 'Completed' ? (
+            {isActiveCompleted ? (
               <span className="inline-flex items-center gap-1 rounded-full bg-emerald-600 px-3 py-1 text-xs font-bold text-white shadow-lg backdrop-blur">
-                <CheckCircle2 className="size-3.5" />
+                <CheckCircle2 className="size-3.5" aria-hidden="true" />
                 Completed
               </span>
             ) : (
               <span className="inline-flex items-center gap-1 rounded-full bg-blue-600 px-3 py-1 text-xs font-bold text-white shadow-lg backdrop-blur">
-                <Clock className="size-3.5" />
+                <Clock className="size-3.5" aria-hidden="true" />
                 In Progress
               </span>
             )}
@@ -234,7 +281,7 @@ export default function ContinueLearning() {
             </div>
 
             <h3 className="mt-1 text-xl sm:text-2xl font-bold tracking-tight text-foreground leading-snug">
-              {activeCourse.title || activeCourse.Course}
+              {activeCourse.title || (activeCourse as any).Course}
             </h3>
 
             <p className="mt-1.5 line-clamp-1 text-xs sm:text-sm font-medium text-muted-foreground">
@@ -248,12 +295,17 @@ export default function ContinueLearning() {
                 <span className="font-bold text-foreground">{activeCourse.progress}%</span>
               </div>
 
-              <div className="h-2.5 w-full overflow-hidden rounded-full bg-muted">
+              <div
+                className="h-2.5 w-full overflow-hidden rounded-full bg-muted"
+                role="progressbar"
+                aria-valuenow={activeCourse.progress}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-label={`${activeCourse.title || (activeCourse as any).Course} progress`}
+              >
                 <div
                   className={`h-full rounded-full transition-all duration-500 ${
-                    activeCourse.status === 'Completed'
-                      ? 'bg-emerald-500'
-                      : 'bg-primary'
+                    isActiveCompleted ? 'bg-emerald-500' : 'bg-primary'
                   }`}
                   style={{
                     width: `${Math.max(5, activeCourse.progress)}%`,
@@ -266,27 +318,34 @@ export default function ContinueLearning() {
           {/* Bottom Action & Resume Button */}
           <div className="mt-6 flex flex-wrap items-center justify-between gap-3 pt-2">
             <span className="text-xs text-muted-foreground">
-              {activeCourse.status === 'Completed'
+              {isActiveCompleted
                 ? 'Great job! You finished this course.'
                 : `Resuming Lesson ${(activeCourse.lastWatchedLessonIndex || 0) + 1}`}
             </span>
 
-            <Link href={resumeHref}>
+            <Link
+              href={resumeHref}
+              aria-label={
+                isActiveCompleted
+                  ? `Review ${activeCourse.title || (activeCourse as any).Course}`
+                  : `Continue learning ${activeCourse.title || (activeCourse as any).Course}`
+              }
+            >
               <Button
                 className={`rounded-xl px-5 py-2.5 text-xs font-semibold shadow transition-all ${
-                  activeCourse.status === 'Completed'
+                  isActiveCompleted
                     ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
                     : 'bg-primary hover:bg-primary/90 text-primary-foreground'
                 }`}
               >
-                {activeCourse.status === 'Completed' ? (
+                {isActiveCompleted ? (
                   <>
-                    <RotateCcw className="size-3.5 mr-1.5" />
+                    <RotateCcw className="size-3.5 mr-1.5" aria-hidden="true" />
                     Review Course
                   </>
                 ) : (
                   <>
-                    <Play className="size-3.5 mr-1.5 fill-current" />
+                    <Play className="size-3.5 mr-1.5 fill-current" aria-hidden="true" />
                     Continue Learning
                   </>
                 )}
@@ -302,32 +361,16 @@ export default function ContinueLearning() {
           <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
             Other Enrolled Courses
           </p>
-          <div className="flex flex-wrap gap-2">
-            {enrolledAndActiveCourses.map((c: any, idx: number) => {
-              const isSelected = selectedCourseIndex === idx
-              return (
-                <button
-                  key={c.id}
-                  onClick={() => setSelectedCourseIndex(idx)}
-                  className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium transition-all ${
-                    isSelected
-                      ? 'border-primary bg-primary/10 text-primary font-semibold'
-                      : 'border-border/60 bg-muted/20 text-muted-foreground hover:bg-muted/50 hover:text-foreground'
-                  }`}
-                >
-                  <span className="truncate max-w-[150px]">{c.title || c.Course}</span>
-                  <span
-                    className={`rounded-full px-1.5 py-0.2 text-[10px] ${
-                      c.status === 'Completed'
-                        ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-bold'
-                        : 'bg-primary/20 text-primary'
-                    }`}
-                  >
-                    {c.progress}%
-                  </span>
-                </button>
-              )
-            })}
+          <div className="flex flex-wrap gap-2" role="group" aria-label="Switch enrolled course">
+            {enrolledAndActiveCourses.map((course, idx) => (
+              <CoursePill
+                key={course.id}
+                course={course}
+                index={idx}
+                isSelected={selectedCourseIndex === idx}
+                onSelect={handleSelectCourse}
+              />
+            ))}
           </div>
         </div>
       )}

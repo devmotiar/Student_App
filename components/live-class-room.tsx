@@ -1,6 +1,7 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import type { FormEvent } from 'react'
 import {
   AlertCircle,
   Loader2,
@@ -40,15 +41,18 @@ interface LiveClassRoomProps {
   displayName: string
 }
 
-function VideoTile({
-  stream,
-  label,
-  muted = false,
-}: {
+interface VideoTileProps {
   stream: MediaStream
   label: string
   muted?: boolean
-}) {
+}
+
+/**
+ * Memoized: this component attaches srcObject imperatively via ref, so
+ * re-rendering it without a stream/label/muted change would be wasted work
+ * (and could momentarily disturb the video element in some browsers).
+ */
+const VideoTile = memo(function VideoTile({ stream, label, muted = false }: VideoTileProps) {
   const videoRef = useRef<HTMLVideoElement>(null)
 
   useEffect(() => {
@@ -61,13 +65,20 @@ function VideoTile({
 
   return (
     <div className="relative aspect-video overflow-hidden rounded-2xl border border-white/10 bg-slate-900">
-      <video ref={videoRef} autoPlay playsInline muted={muted} className="h-full w-full object-cover" />
+      <video
+        ref={videoRef}
+        autoPlay
+        playsInline
+        muted={muted}
+        aria-label={label}
+        className="h-full w-full object-cover"
+      />
       <span className="absolute bottom-2 left-2 rounded-full bg-black/70 px-2.5 py-1 text-[11px] font-semibold text-white">
         {label}
       </span>
     </div>
   )
-}
+})
 
 function isFresh(participant: RoomParticipant) {
   return Date.now() - participant.lastSeenAt.toMillis() < PRESENCE_TIMEOUT_MS
@@ -93,9 +104,12 @@ export function LiveClassRoom({ classId, userId, displayName }: LiveClassRoomPro
   const initializedPeersRef = useRef(new Set<string>())
 
   const sendSignal = useCallback(
-    (recipientId: string, type: 'offer' | 'answer' | 'candidate', payload: RTCSessionDescriptionInit | RTCIceCandidateInit) =>
-      sendRoomSignal(classId, { senderId: userId, recipientId, type, payload }),
-    [classId, userId]
+    (
+      recipientId: string,
+      type: 'offer' | 'answer' | 'candidate',
+      payload: RTCSessionDescriptionInit | RTCIceCandidateInit,
+    ) => sendRoomSignal(classId, { senderId: userId, recipientId, type, payload }),
+    [classId, userId],
   )
 
   const closePeer = useCallback((remoteId: string) => {
@@ -144,7 +158,7 @@ export function LiveClassRoom({ classId, userId, displayName }: LiveClassRoomPro
 
       return peer
     },
-    [closePeer, sendSignal]
+    [closePeer, sendSignal],
   )
 
   useEffect(() => {
@@ -186,52 +200,61 @@ export function LiveClassRoom({ classId, userId, displayName }: LiveClassRoomPro
         }
         await upsertRoomParticipant(classId, participant)
 
-        unsubscribeParticipants = subscribeToRoomParticipants(classId, (nextParticipants) => {
-          const freshParticipants = nextParticipants.filter(isFresh)
-          const previousParticipants = participantsRef.current
-          participantsRef.current = freshParticipants
-          setParticipants(freshParticipants)
+        unsubscribeParticipants = subscribeToRoomParticipants(
+          classId,
+          (nextParticipants) => {
+            const freshParticipants = nextParticipants.filter(isFresh)
+            const previousParticipants = participantsRef.current
+            participantsRef.current = freshParticipants
+            setParticipants(freshParticipants)
 
-          if (freshParticipants.length > MAX_PARTICIPANTS) {
-            setError(`This room is full. It supports up to ${MAX_PARTICIPANTS} participants.`)
-            setRoomState('error')
-            return
-          }
-
-          for (const remote of freshParticipants) {
-            if (remote.uid === userId || peersRef.current.has(remote.uid)) continue
-            void ensurePeer(remote.uid, userId < remote.uid, iceServers)
-          }
-
-          for (const remote of previousParticipants) {
-            if (remote.uid !== userId && !freshParticipants.some((item) => item.uid === remote.uid)) {
-              closePeer(remote.uid)
+            if (freshParticipants.length > MAX_PARTICIPANTS) {
+              setError(`This room is full. It supports up to ${MAX_PARTICIPANTS} participants.`)
+              setRoomState('error')
+              return
             }
-          }
-        }, (listenerError) => setError(listenerError.message))
 
-        unsubscribeSignals = subscribeToRoomSignals(classId, userId, async (signal) => {
-          try {
-            const peer = await ensurePeer(signal.senderId, false, iceServers)
-            if (signal.type === 'offer') {
-              await peer.setRemoteDescription(signal.payload as RTCSessionDescriptionInit)
-              const answer = await peer.createAnswer()
-              await peer.setLocalDescription(answer)
-              await sendSignal(signal.senderId, 'answer', answer)
-            } else if (signal.type === 'answer') {
-              await peer.setRemoteDescription(signal.payload as RTCSessionDescriptionInit)
-            } else {
-              await peer.addIceCandidate(signal.payload as RTCIceCandidateInit)
+            for (const remote of freshParticipants) {
+              if (remote.uid === userId || peersRef.current.has(remote.uid)) continue
+              void ensurePeer(remote.uid, userId < remote.uid, iceServers)
             }
-          } catch (signalError) {
-            console.error('[live-room] Signal processing failed:', signalError)
-          } finally {
-            await removeRoomSignal(classId, signal.id).catch(() => undefined)
-          }
-        }, (listenerError) => setError(listenerError.message))
+
+            for (const remote of previousParticipants) {
+              if (remote.uid !== userId && !freshParticipants.some((item) => item.uid === remote.uid)) {
+                closePeer(remote.uid)
+              }
+            }
+          },
+          (listenerError) => setError(listenerError.message),
+        )
+
+        unsubscribeSignals = subscribeToRoomSignals(
+          classId,
+          userId,
+          async (signal) => {
+            try {
+              const peer = await ensurePeer(signal.senderId, false, iceServers)
+              if (signal.type === 'offer') {
+                await peer.setRemoteDescription(signal.payload as RTCSessionDescriptionInit)
+                const answer = await peer.createAnswer()
+                await peer.setLocalDescription(answer)
+                await sendSignal(signal.senderId, 'answer', answer)
+              } else if (signal.type === 'answer') {
+                await peer.setRemoteDescription(signal.payload as RTCSessionDescriptionInit)
+              } else {
+                await peer.addIceCandidate(signal.payload as RTCIceCandidateInit)
+              }
+            } catch (signalError) {
+              console.error('[live-room] Signal processing failed:', signalError)
+            } finally {
+              await removeRoomSignal(classId, signal.id).catch(() => undefined)
+            }
+          },
+          (listenerError) => setError(listenerError.message),
+        )
 
         unsubscribeMessages = subscribeToRoomMessages(classId, setMessages, (listenerError) =>
-          setError(listenerError.message)
+          setError(listenerError.message),
         )
 
         heartbeat = setInterval(() => {
@@ -250,7 +273,7 @@ export function LiveClassRoom({ classId, userId, displayName }: LiveClassRoomPro
             ? 'Camera and microphone permission is required to enter the live room.'
             : setupError instanceof Error
               ? setupError.message
-              : 'Unable to join the live room.'
+              : 'Unable to join the live room.',
         )
         setRoomState('error')
       }
@@ -274,54 +297,61 @@ export function LiveClassRoom({ classId, userId, displayName }: LiveClassRoomPro
     }
   }, [classId, closePeer, displayName, ensurePeer, sendSignal, userId])
 
-  const activeParticipants = useMemo(
-    () => participants.filter(isFresh),
-    [participants]
+  const activeParticipants = useMemo(() => participants.filter(isFresh), [participants])
+
+  const updateMediaState = useCallback(
+    async (muted: boolean, videoOff: boolean) => {
+      const now = Timestamp.now()
+      await upsertRoomParticipant(classId, {
+        uid: userId,
+        displayName,
+        joinedAt: now,
+        lastSeenAt: now,
+        isMuted: muted,
+        isVideoOff: videoOff,
+      })
+    },
+    [classId, userId, displayName],
   )
 
-  const updateMediaState = async (muted: boolean, videoOff: boolean) => {
-    const now = Timestamp.now()
-    await upsertRoomParticipant(classId, {
-      uid: userId,
-      displayName,
-      joinedAt: now,
-      lastSeenAt: now,
-      isMuted: muted,
-      isVideoOff: videoOff,
-    })
-  }
-
-  const toggleMute = () => {
-    const next = !isMuted
+  const toggleMute = useCallback(() => {
+    const next = !isMutedRef.current
     isMutedRef.current = next
     localStreamRef.current?.getAudioTracks().forEach((track) => (track.enabled = !next))
     setIsMuted(next)
-    void updateMediaState(next, isVideoOff)
-  }
+    void updateMediaState(next, isVideoOffRef.current)
+  }, [updateMediaState])
 
-  const toggleVideo = () => {
-    const next = !isVideoOff
+  const toggleVideo = useCallback(() => {
+    const next = !isVideoOffRef.current
     isVideoOffRef.current = next
     localStreamRef.current?.getVideoTracks().forEach((track) => (track.enabled = !next))
     setIsVideoOff(next)
-    void updateMediaState(isMuted, next)
-  }
+    void updateMediaState(isMutedRef.current, next)
+  }, [updateMediaState])
 
-  const submitMessage = async (event: React.FormEvent) => {
-    event.preventDefault()
-    const message = messageText.trim()
-    if (!message) return
-    setMessageText('')
-    await sendRoomMessage(classId, { uid: userId, displayName, message }).catch((sendError) => {
-      setError(sendError instanceof Error ? sendError.message : 'Message could not be sent.')
-    })
-  }
+  const submitMessage = useCallback(
+    async (event: FormEvent<HTMLFormElement>) => {
+      event.preventDefault()
+      const message = messageText.trim()
+      if (!message) return
+      setMessageText('')
+      await sendRoomMessage(classId, { uid: userId, displayName, message }).catch((sendError) => {
+        setError(sendError instanceof Error ? sendError.message : 'Message could not be sent.')
+      })
+    },
+    [classId, userId, displayName, messageText],
+  )
 
   if (roomState === 'joining') {
     return (
-      <Card className="flex min-h-[420px] items-center justify-center rounded-3xl border-red-500/30 bg-slate-950 p-8 text-center text-white">
+      <Card
+        className="flex min-h-[420px] items-center justify-center rounded-3xl border-red-500/30 bg-slate-950 p-8 text-center text-white"
+        role="status"
+        aria-live="polite"
+      >
         <div>
-          <Loader2 className="mx-auto size-10 animate-spin text-red-400" />
+          <Loader2 className="mx-auto size-10 animate-spin text-red-400" aria-hidden="true" />
           <p className="mt-4 text-sm text-slate-300">Connecting to the live room…</p>
         </div>
       </Card>
@@ -330,8 +360,8 @@ export function LiveClassRoom({ classId, userId, displayName }: LiveClassRoomPro
 
   if (roomState === 'error') {
     return (
-      <Card className="rounded-3xl border-red-500/30 bg-red-950/20 p-8 text-center">
-        <AlertCircle className="mx-auto size-10 text-red-500" />
+      <Card className="rounded-3xl border-red-500/30 bg-red-950/20 p-8 text-center" role="alert">
+        <AlertCircle className="mx-auto size-10 text-red-500" aria-hidden="true" />
         <h3 className="mt-3 text-lg font-bold text-foreground">Unable to join live room</h3>
         <p className="mt-2 text-sm text-muted-foreground">{error}</p>
       </Card>
@@ -343,23 +373,25 @@ export function LiveClassRoom({ classId, userId, displayName }: LiveClassRoomPro
       <Card className="overflow-hidden rounded-3xl border-red-500/40 bg-slate-950 p-4 text-white shadow-xl">
         <div className="mb-3 flex items-center justify-between gap-3">
           <span className="inline-flex items-center gap-2 rounded-full bg-red-600/90 px-3 py-1 text-xs font-bold">
-            <span className="size-2 animate-pulse rounded-full bg-white" /> LIVE ROOM
+            <span className="size-2 animate-pulse rounded-full bg-white" aria-hidden="true" /> LIVE ROOM
           </span>
           <span className="inline-flex items-center gap-1.5 text-xs text-slate-300">
-            <Users className="size-3.5 text-red-400" /> {activeParticipants.length}/{MAX_PARTICIPANTS}
+            <Users className="size-3.5 text-red-400" aria-hidden="true" /> {activeParticipants.length}/
+            {MAX_PARTICIPANTS}
           </span>
         </div>
 
         {error && (
-          <div className="mb-3 flex items-center gap-2 rounded-xl bg-amber-500/15 px-3 py-2 text-xs text-amber-200">
-            <Wifi className="size-3.5" /> {error}
+          <div
+            className="mb-3 flex items-center gap-2 rounded-xl bg-amber-500/15 px-3 py-2 text-xs text-amber-200"
+            role="alert"
+          >
+            <Wifi className="size-3.5" aria-hidden="true" /> {error}
           </div>
         )}
 
         <div className="grid gap-3 sm:grid-cols-2">
-          {localStream && (
-            <VideoTile stream={localStream} label={`${displayName} (You)`} muted />
-          )}
+          {localStream && <VideoTile stream={localStream} label={`${displayName} (You)`} muted />}
           {Object.entries(remoteStreams).map(([remoteId, stream]) => (
             <VideoTile
               key={remoteId}
@@ -370,12 +402,34 @@ export function LiveClassRoom({ classId, userId, displayName }: LiveClassRoomPro
         </div>
 
         <div className="mt-4 flex flex-wrap items-center gap-2">
-          <Button onClick={toggleMute} size="sm" variant={isMuted ? 'destructive' : 'secondary'} className="rounded-full text-xs">
-            {isMuted ? <MicOff className="mr-1.5 size-3.5" /> : <Mic className="mr-1.5 size-3.5" />}
+          <Button
+            type="button"
+            onClick={toggleMute}
+            size="sm"
+            variant={isMuted ? 'destructive' : 'secondary'}
+            className="rounded-full text-xs"
+            aria-pressed={!isMuted}
+          >
+            {isMuted ? (
+              <MicOff className="mr-1.5 size-3.5" aria-hidden="true" />
+            ) : (
+              <Mic className="mr-1.5 size-3.5" aria-hidden="true" />
+            )}
             {isMuted ? 'Unmute' : 'Mute'}
           </Button>
-          <Button onClick={toggleVideo} size="sm" variant={isVideoOff ? 'destructive' : 'secondary'} className="rounded-full text-xs">
-            {isVideoOff ? <VideoOff className="mr-1.5 size-3.5" /> : <Video className="mr-1.5 size-3.5" />}
+          <Button
+            type="button"
+            onClick={toggleVideo}
+            size="sm"
+            variant={isVideoOff ? 'destructive' : 'secondary'}
+            className="rounded-full text-xs"
+            aria-pressed={!isVideoOff}
+          >
+            {isVideoOff ? (
+              <VideoOff className="mr-1.5 size-3.5" aria-hidden="true" />
+            ) : (
+              <Video className="mr-1.5 size-3.5" aria-hidden="true" />
+            )}
             {isVideoOff ? 'Start camera' : 'Stop camera'}
           </Button>
           <span className="ml-auto text-[11px] text-slate-400">Mesh room · max {MAX_PARTICIPANTS}</span>
@@ -385,35 +439,52 @@ export function LiveClassRoom({ classId, userId, displayName }: LiveClassRoomPro
       <Card className="flex h-[420px] flex-col rounded-3xl border-border/60 bg-card p-4">
         <div className="flex items-center justify-between border-b border-border/60 pb-3">
           <div className="flex items-center gap-2">
-            <MessageSquare className="size-4 text-primary" />
+            <MessageSquare className="size-4 text-primary" aria-hidden="true" />
             <h4 className="text-sm font-bold text-foreground">Live Discussion</h4>
           </div>
           <span className="text-[11px] text-muted-foreground">{messages.length} messages</span>
         </div>
-        <div className="flex-1 space-y-3 overflow-y-auto py-3 text-xs">
+        <div
+          className="flex-1 space-y-3 overflow-y-auto py-3 text-xs"
+          role="log"
+          aria-live="polite"
+          aria-label="Live chat messages"
+        >
           {messages.length === 0 ? (
             <p className="py-8 text-center text-muted-foreground">Be the first to ask a question.</p>
-          ) : messages.map((message) => (
-            <div key={message.id} className="rounded-2xl bg-muted/40 p-3">
-              <div className="mb-1 flex items-center justify-between gap-2">
-                <span className="font-bold text-foreground">{message.displayName}</span>
-                <span className="text-[10px] text-muted-foreground">
-                  {message.createdAt.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                </span>
+          ) : (
+            messages.map((message) => (
+              <div key={message.id} className="rounded-2xl bg-muted/40 p-3">
+                <div className="mb-1 flex items-center justify-between gap-2">
+                  <span className="font-bold text-foreground">{message.displayName}</span>
+                  <span className="text-[10px] text-muted-foreground">
+                    {message.createdAt.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                </div>
+                <p className="break-words leading-relaxed text-foreground/90">{message.message}</p>
               </div>
-              <p className="break-words leading-relaxed text-foreground/90">{message.message}</p>
-            </div>
-          ))}
+            ))
+          )}
         </div>
         <form onSubmit={submitMessage} className="flex gap-2 border-t border-border/60 pt-3">
+          <label htmlFor="live-room-message-input" className="sr-only">
+            Ask a question
+          </label>
           <input
+            id="live-room-message-input"
             value={messageText}
             onChange={(event) => setMessageText(event.target.value)}
             placeholder="Ask a question…"
             className="min-w-0 flex-1 rounded-full border border-border/60 bg-muted/30 px-3.5 py-2 text-xs outline-none focus:border-primary"
           />
-          <Button type="submit" size="sm" disabled={!messageText.trim()} className="size-8 rounded-full p-0">
-            <Send className="size-3.5" />
+          <Button
+            type="submit"
+            size="sm"
+            disabled={!messageText.trim()}
+            className="size-8 rounded-full p-0"
+            aria-label="Send message"
+          >
+            <Send className="size-3.5" aria-hidden="true" />
           </Button>
         </form>
       </Card>

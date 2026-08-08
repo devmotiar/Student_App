@@ -7,21 +7,24 @@ const highlights = [
   'Learn from expert-led live classes',
   'Watch recorded lessons anytime',
   'Track progress with a personal dashboard',
-]
+] as const
 
-export function AuthShell({
-  title,
-  subtitle,
-  children,
-}: {
+interface AuthShellProps {
   title: string
   subtitle: string
   children: ReactNode
-}) {
+}
+
+export function AuthShell({ title, subtitle, children }: AuthShellProps) {
+  const currentYear = new Date().getFullYear()
+
   return (
     <main className="flex min-h-screen w-full flex-col lg:flex-row">
       {/* Brand panel */}
-      <section className="relative hidden overflow-hidden bg-primary lg:flex lg:w-1/2 lg:flex-col lg:justify-between lg:p-12 xl:p-16">
+      <section
+        aria-label="Product highlights"
+        className="relative hidden overflow-hidden bg-primary lg:flex lg:w-1/2 lg:flex-col lg:justify-between lg:p-12 xl:p-16"
+      >
         <div
           aria-hidden="true"
           className="pointer-events-none absolute -right-24 -top-24 size-96 rounded-full bg-primary-foreground/10 blur-2xl"
@@ -40,8 +43,8 @@ export function AuthShell({
             Unlock your potential with world-class courses.
           </h2>
           <p className="mt-4 text-primary-foreground/80 leading-relaxed">
-            Join over 200,000 learners building in-demand skills through live
-            classes and on-demand video lessons.
+            Join over 200,000 learners building in-demand skills through live classes and
+            on-demand video lessons.
           </p>
           <ul className="mt-8 flex flex-col gap-3">
             {highlights.map((item) => (
@@ -54,12 +57,12 @@ export function AuthShell({
         </div>
 
         <p className="relative text-sm text-primary-foreground/70">
-          &copy; {new Date().getFullYear()} SITM Learning. All rights reserved.
+          &copy; {currentYear} SITM Learning. All rights reserved.
         </p>
       </section>
 
       {/* Form panel */}
-      <section className="flex flex-1 items-center justify-center px-5 py-10 sm:px-8">
+      <section aria-label={title} className="flex flex-1 items-center justify-center px-5 py-10 sm:px-8">
         <div className="w-full max-w-sm">
           <div className="mb-8 lg:hidden">
             <Logo />
