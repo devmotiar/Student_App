@@ -61,6 +61,7 @@ interface CourseRecord {
 /* =========================================================
    Navigation
 ========================================================= */
+import { ProfileDropdown } from '../ui/ProfileDropdown'
 
 const navItems = [
   {
@@ -183,8 +184,6 @@ function SidebarContent({
           </Link>
         )}
       </nav>
-
-      {/* Logout */}
       <button
         onClick={handleLogout}
         className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-muted-foreground transition-colors hover:bg-sidebar-accent/50 hover:text-foreground"
@@ -672,25 +671,8 @@ export function AppShell({
 
               <span className="absolute right-2 top-2 size-2 rounded-full bg-destructive ring-2 ring-background" />
             </button>
-
-            {/* User Profile */}
-            <div className="flex items-center gap-2.5">
-              {/* Avatar */}
-              <span className="flex size-9 items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground">
-                {initials}
-              </span>
-
-              {/* User Details */}
-              <div className="hidden text-left leading-tight sm:block">
-                <p className="max-w-[150px] truncate text-sm font-medium text-foreground">
-                  {displayName}
-                </p>
-
-                <p className="text-xs text-muted-foreground">
-                  {role}
-                </p>
-              </div>
-            </div>
+           
+            <ProfileDropdown/>
           </div>
         </header>
 
