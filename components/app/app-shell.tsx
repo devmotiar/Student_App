@@ -23,6 +23,7 @@ import { Logo } from '@/components/logo'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/lib/hooks/useAuth'
 import { signOut } from '@/lib/firebase-auth-operations'
+import { ProfileDropdown } from '../ui/ProfileDropdown'
 
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -94,15 +95,6 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
           </Link>
         )}
       </nav>
-
-      {/* <div className="rounded-xl bg-accent/50 p-4">
-        <p className="text-sm font-semibold text-foreground">Go Premium</p>
-        <p className="mt-1 text-xs text-muted-foreground leading-relaxed">
-          Unlock all courses and downloadable resources.
-        </p>
-        <Button className="mt-3 h-9 w-full text-xs">Upgrade plan</Button>
-      </div> */}
-
       <button
         onClick={handleLogout}
         className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-muted-foreground transition-colors hover:bg-sidebar-accent/50 hover:text-foreground"
@@ -191,15 +183,8 @@ export function AppShell({ children }: { children: ReactNode }) {
               <Bell className="size-5" />
               <span className="absolute right-2 top-2 size-2 rounded-full bg-destructive ring-2 ring-background" />
             </button>
-            <div className="flex items-center gap-2.5">
-              <span className="flex size-9 items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground">
-                {initials}
-              </span>
-              <div className="hidden text-left leading-tight sm:block">
-                <p className="text-sm font-medium text-foreground">{displayName}</p>
-                <p className="text-xs text-muted-foreground">{role}</p>
-              </div>
-            </div>
+           
+            <ProfileDropdown/>
           </div>
         </header>
 
