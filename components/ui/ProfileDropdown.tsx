@@ -11,6 +11,7 @@ import {
   LogOut,
   Mail,
   ShoppingCart,
+  User
 } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
@@ -36,6 +37,7 @@ type MenuLink = {
 
 const menuLinks: MenuLink[] = [
   { href: '/courses', label: 'My Courses', icon: BookOpen },
+  { href: '/profile', label: 'My Profile', icon: User },
   { href: '/cart', label: 'My Cart', icon: ShoppingCart },
   { href: '/wishlist', label: 'Wishlist', icon: Heart },
   { href: '/teach', label: 'Teach on Platform', icon: GraduationCap },
