@@ -1,24 +1,68 @@
+
 import 'server-only'
 
-import { cert, getApps, initializeApp, type App } from 'firebase-admin/app'
-import { getAuth, type Auth } from 'firebase-admin/auth'
+import {
+  cert,
+  getApps,
+  initializeApp,
+  type App,
+} from 'firebase-admin/app'
+
+import {
+  getAuth,
+  type Auth,
+} from 'firebase-admin/auth'
 
 let adminApp: App | undefined
 
-function getAdminApp() {
-  if (adminApp) return adminApp
-  if (getApps().length > 0) {
-    adminApp = getApps()[0]
+function getAdminApp(): App {
+  if (adminApp) {
     return adminApp
   }
 
-  const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n')
-  const projectId = process.env.FIREBASE_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID
+  const existingApps = getApps()
+
+  if (existingApps.length > 0) {
+    adminApp = existingApps[0]
+    return adminApp
+  }
+
+  const projectId =
+    process.env.FIREBASE_PROJECT_ID ||
+    process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID
+
   const clientEmail = process.env.FIREBASE_CLIENT_EMAIL
 
-  adminApp = projectId && clientEmail && privateKey
-    ? initializeApp({ credential: cert({ projectId, clientEmail, privateKey }) })
-    : initializeApp()
+  const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(
+    /\\n/g,
+    '\n'
+  )
+
+  if (!projectId) {
+    throw new Error(
+      'Missing FIREBASE_PROJECT_ID environment variable'
+    )
+  }
+
+  if (!clientEmail) {
+    throw new Error(
+      'Missing FIREBASE_CLIENT_EMAIL environment variable'
+    )
+  }
+
+  if (!privateKey) {
+    throw new Error(
+      'Missing FIREBASE_PRIVATE_KEY environment variable'
+    )
+  }
+
+  adminApp = initializeApp({
+    credential: cert({
+      projectId,
+      clientEmail,
+      privateKey,
+    }),
+  })
 
   return adminApp
 }
